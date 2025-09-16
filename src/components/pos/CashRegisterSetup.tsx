@@ -95,6 +95,7 @@ export function CashRegisterSetup({ isOpen, onClose, onSuccess }: CashRegisterSe
 
     try {
       setLoading(true);
+      console.log('🔓 Attempting to open cash register:', selectedCashRegister)
       const success = await openCashRegister({
         caja_id: parseInt(selectedCashRegister),
         monto_inicial_usd: usdAmount,
