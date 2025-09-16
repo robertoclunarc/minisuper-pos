@@ -1,10 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Modal } from '../common/Modal';
-import { LoadingSpinner } from '../common/LoadingSpinner';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Stack,
+  Card,
+  CardContent,
+  TextField,
+  Typography,
+  Alert,
+  Box,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
+  FormControl,
+  FormLabel,
+} from '@mui/material';
+import { AttachMoney, Store } from '@mui/icons-material';
 import { useCashRegister } from '../../contexts/CashRegisterContext';
 import { cashRegisterService } from '../../services/cashRegisterService';
 import { CashRegister } from '../../types';
-import { Calculator, DollarSign } from 'lucide-react';
+import { LoadingSpinner } from '../common/LoadingSpinner';
 
 interface CashRegisterSetupProps {
   isOpen: boolean;
@@ -14,7 +32,7 @@ interface CashRegisterSetupProps {
 
 export function CashRegisterSetup({ isOpen, onClose, onSuccess }: CashRegisterSetupProps) {
   const [cashRegisters, setCashRegisters] = useState<CashRegister[]>([]);
-  const [selectedCashRegister, setSelectedCashRegister] = useState<number | null>(null);
+  const [selectedCashRegister, setSelectedCashRegister] = useState<string>('');
   const [initialAmountUSD, setInitialAmountUSD] = useState<string>('0');
   const [initialAmountVES, setInitialAmountVES] = useState<string>('0');
   const [observations, setObservations] = useState('');
@@ -33,15 +51,20 @@ export function CashRegisterSetup({ isOpen, onClose, onSuccess }: CashRegisterSe
   const loadCashRegisters = async () => {
     try {
       setLoadingCashRegisters(true);
+      console.log('🔄 Loading cash registers...');
+      
       const response = await cashRegisterService.getCashRegisters();
+      console.log('📊 Cash registers response:', response);
+      
       if (response.success && response.data) {
-        // Filtrar solo cajas cerradas
         const availableCashRegisters = response.data.filter(
-          cashRegister => cashRegister.estado === 'cerrado'
+          cashRegister => cashRegister.estado === 'cerrado' || !cashRegister.estado
         );
         setCashRegisters(availableCashRegisters);
+        console.log('✅ Available cash registers:', availableCashRegisters);
       }
     } catch (error) {
+      console.error('❌ Error loading cash registers:', error);
       setError('Error cargando cajas registradoras');
     } finally {
       setLoadingCashRegisters(false);
@@ -73,7 +96,7 @@ export function CashRegisterSetup({ isOpen, onClose, onSuccess }: CashRegisterSe
     try {
       setLoading(true);
       const success = await openCashRegister({
-        caja_id: selectedCashRegister,
+        caja_id: parseInt(selectedCashRegister),
         monto_inicial_usd: usdAmount,
         monto_inicial_ves: vesAmount,
         observaciones: observations || undefined
@@ -82,8 +105,7 @@ export function CashRegisterSetup({ isOpen, onClose, onSuccess }: CashRegisterSe
       if (success) {
         onSuccess();
         onClose();
-        // Reset form
-        setSelectedCashRegister(null);
+        setSelectedCashRegister('');
         setInitialAmountUSD('0');
         setInitialAmountVES('0');
         setObservations('');
@@ -91,160 +113,143 @@ export function CashRegisterSetup({ isOpen, onClose, onSuccess }: CashRegisterSe
         setError('Error abriendo la caja');
       }
     } catch (error) {
-      setError('Error abriendo la caja');
+      setError('Error abriendo la caja:' + (error as Error).message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Abrir Caja Registradora" size="lg">
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg">
-            {error}
-          </div>
-        )}
+    <Dialog open={isOpen} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle>
+        <Box display="flex" alignItems="center" gap={1}>
+          <Store color="primary" />
+          Abrir Caja Registradora
+        </Box>
+      </DialogTitle>
 
-        {/* Selección de caja */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Seleccionar Caja
-          </label>
-          {loadingCashRegisters ? (
-            <div className="flex items-center justify-center py-8">
-              <LoadingSpinner />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {cashRegisters.map((cashRegister) => (
-                <button
-                  key={cashRegister.id}
-                  type="button"
-                  onClick={() => setSelectedCashRegister(cashRegister.id)}
-                  className={`p-4 border-2 rounded-lg text-left transition-colors ${
-                    selectedCashRegister === cashRegister.id
-                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                  }`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="bg-primary-500 text-white p-2 rounded">
-                      <Calculator className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">
-                        {cashRegister.nombre}
-                      </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Caja #{cashRegister.numero_caja}
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
+      <DialogContent>
+        <Stack spacing={3} sx={{ mt: 2 }}>
+          {error && (
+            <Alert severity="error">
+              {error}
+            </Alert>
           )}
-          {!loadingCashRegisters && cashRegisters.length === 0 && (
-            <p className="text-gray-500 dark:text-gray-400 text-center py-4">
-              No hay cajas disponibles para abrir
-            </p>
-          )}
-        </div>
 
-        {/* Montos iniciales */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Monto Inicial USD
-            </label>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={initialAmountUSD}
-                onChange={(e) => setInitialAmountUSD(e.target.value)}
-                className="input pl-10"
-                placeholder="0.00"
-              />
-            </div>
-          </div>
+          {/* Selección de caja */}
+          <FormControl component="fieldset" fullWidth>
+            <FormLabel component="legend">Seleccionar Caja</FormLabel>
+            {loadingCashRegisters ? (
+              <Box display="flex" justifyContent="center" py={4}>
+                <LoadingSpinner />
+              </Box>
+            ) : (
+              <RadioGroup
+                value={selectedCashRegister}
+                onChange={(e) => setSelectedCashRegister(e.target.value)}
+              >
+                <Stack spacing={2} sx={{ mt: 1 }}>
+                  {cashRegisters.map((cashRegister) => (
+                    <Card 
+                      key={cashRegister.id}
+                      variant="outlined" 
+                      sx={{ 
+                        cursor: 'pointer',
+                        border: selectedCashRegister === cashRegister.id.toString() ? 2 : 1,
+                        borderColor: selectedCashRegister === cashRegister.id.toString() ? 'primary.main' : 'divider',
+                      }}
+                      onClick={() => setSelectedCashRegister(cashRegister.id.toString())}
+                    >
+                      <CardContent>
+                        <FormControlLabel
+                          value={cashRegister.id.toString()}
+                          control={<Radio />}
+                          label={
+                            <Box>
+                              <Typography variant="subtitle1" fontWeight="bold">
+                                {cashRegister.nombre}
+                              </Typography>
+                              <Typography variant="body2" color="textSecondary">
+                                Caja #{cashRegister.numero_caja}
+                              </Typography>
+                            </Box>
+                          }
+                        />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Stack>
+              </RadioGroup>
+            )}
+            {!loadingCashRegisters && cashRegisters.length === 0 && (
+              <Alert severity="warning" sx={{ mt: 2 }}>
+                No hay cajas disponibles para abrir
+              </Alert>
+            )}
+          </FormControl>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Monto Inicial VES
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 font-bold">
-                Bs
-              </span>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={initialAmountVES}
-                onChange={(e) => setInitialAmountVES(e.target.value)}
-                className="input pl-10"
-                placeholder="0.00"
-              />
-            </div>
-          </div>
-        </div>
+          {/* Montos iniciales */}
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+            <TextField
+              fullWidth
+              label="Monto Inicial USD"
+              type="number"
+              inputProps={{ step: '0.01', min: '0' }}
+              value={initialAmountUSD}
+              onChange={(e) => setInitialAmountUSD(e.target.value)}
+              InputProps={{
+                startAdornment: <AttachMoney sx={{ mr: 1, color: 'text.secondary' }} />,
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Monto Inicial VES"
+              type="number"
+              inputProps={{ step: '0.01', min: '0' }}
+              value={initialAmountVES}
+              onChange={(e) => setInitialAmountVES(e.target.value)}
+              InputProps={{
+                startAdornment: <Typography sx={{ mr: 1, color: 'text.secondary' }}>Bs</Typography>,
+              }}
+            />
+          </Stack>
 
-        {/* Tasa de cambio actual */}
-        {exchangeRate && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-            <p className="text-sm text-blue-700 dark:text-blue-300">
+          {/* Tasa de cambio actual */}
+          {exchangeRate?.usd_ves != null && (
+            <Alert severity="info">
               <strong>Tasa de cambio actual:</strong> 1 USD = {exchangeRate.usd_ves.toLocaleString('es-VE', { 
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2 
               })} VES
-            </p>
-          </div>
-        )}
+            </Alert>
+          )}
 
-        {/* Observaciones */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Observaciones (Opcional)
-          </label>
-          <textarea
+          {/* Observaciones */}
+          <TextField
+            fullWidth
+            label="Observaciones (Opcional)"
+            multiline
+            rows={3}
             value={observations}
             onChange={(e) => setObservations(e.target.value)}
-            rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white resize-none"
             placeholder="Notas sobre la apertura de caja..."
           />
-        </div>
+        </Stack>
+      </DialogContent>
 
-        {/* Botones */}
-        <div className="flex justify-end space-x-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="btn btn-secondary"
-            disabled={loading}
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            className="btn btn-primary flex items-center space-x-2"
-            disabled={loading || !selectedCashRegister}
-          >
-            {loading ? (
-              <>
-                <LoadingSpinner size="small" />
-                <span>Abriendo...</span>
-              </>
-            ) : (
-              <span>Abrir Caja</span>
-            )}
-          </button>
-        </div>
-      </form>
-    </Modal>
+      <DialogActions sx={{ p: 3 }}>
+        <Button onClick={onClose} disabled={loading}>
+          Cancelar
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          variant="contained"
+          disabled={loading || !selectedCashRegister}
+          startIcon={loading ? <LoadingSpinner size={20} /> : <Store />}
+        >
+          {loading ? 'Abriendo...' : 'Abrir Caja'}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }

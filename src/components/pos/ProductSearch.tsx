@@ -1,156 +1,220 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Search, Scan, Package } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  TextField,
+  Box,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
+  IconButton,
+  Typography,
+  Alert,
+  InputAdornment,
+  Chip,
+  Stack,
+} from '@mui/material';
+import {
+  Search,
+  QrCodeScanner,
+  Add,
+  Inventory,
+} from '@mui/icons-material';
 import { productService } from '../../services/productService';
 import { Product } from '../../types';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 
 interface ProductSearchProps {
-  onProductSelect: (product: Product) => void;
+  onProductSelect: (product: Product, quantity?: number) => void;
 }
 
 export function ProductSearch({ onProductSelect }: ProductSearchProps) {
-  const [query, setQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<Product[]>([]);
-  const [showResults, setShowResults] = useState(false);
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [searchType, setSearchType] = useState<'general' | 'barcode'>('general');
 
+  // Debounce para búsqueda
   useEffect(() => {
-    // Focus en el input al cargar
-    if (searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
-  }, []);
-
-  const handleSearch = async (searchTerm: string) => {
-    if (!searchTerm.trim()) {
-      setSearchResults([]);
-      setShowResults(false);
-      return;
-    }
-
-    setIsSearching(true);
-    try {
-      // Buscar por código de barras si parece ser uno
-      if (/^\d{8,}$/.test(searchTerm)) {
-        const response = await productService.getProductByBarcode(searchTerm);
-        if (response.success && response.data) {
-          onProductSelect(response.data);
-          setQuery('');
-          setShowResults(false);
-          return;
+    const delayedSearch = setTimeout(() => {
+      if (searchTerm.trim()) {
+        if (searchType === 'barcode') {
+          searchByBarcode(searchTerm.trim());
+        } else {
+          searchProducts(searchTerm.trim());
         }
+      } else {
+        setSearchResults([]);
       }
+    }, 300);
 
-      // Buscar productos por nombre/código
+    return () => clearTimeout(delayedSearch);
+  }, [searchTerm, searchType]);
+
+  // Detectar si es código de barras (solo números y longitud >= 8)
+  useEffect(() => {
+    const isBarcode = /^\d{8,}$/.test(searchTerm.trim());
+    setSearchType(isBarcode ? 'barcode' : 'general');
+  }, [searchTerm]);
+
+  const searchProducts = async (term: string) => {
+    try {
+      setLoading(true);
+      setError('');
+      
       const response = await productService.getProducts({
-        search: searchTerm,
+        search: term,
         limit: 10
       });
 
       if (response.success && response.data?.products) {
         setSearchResults(response.data.products);
-        setShowResults(true);
       }
     } catch (error) {
       console.error('Error searching products:', error);
+      setError('Error buscando productos');
+      setSearchResults([]);
     } finally {
-      setIsSearching(false);
+      setLoading(false);
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setQuery(value);
-    
-    // Debounce search
-    setTimeout(() => {
-      if (value === query) {
-        handleSearch(value);
+  const searchByBarcode = async (barcode: string) => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const response = await productService.getProductByBarcode(barcode);
+      
+      if (response.success && response.data) {
+        setSearchResults([response.data]);
+        // Auto-agregar producto si se encuentra por código de barras
+        setTimeout(() => {
+          onProductSelect(response.data!);
+          setSearchTerm('');
+          setSearchResults([]);
+        }, 500);
+      } else {
+        setError('Producto no encontrado');
+        setSearchResults([]);
       }
-    }, 300);
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleSearch(query);
-    }
-    if (e.key === 'Escape') {
-      setQuery('');
-      setShowResults(false);
+    } catch (error) {
+      console.error('Error searching by barcode:', error);
+      setError('Producto no encontrado');
+      setSearchResults([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const selectProduct = (product: Product) => {
+  const handleProductSelect = (product: Product) => {
     onProductSelect(product);
-    setQuery('');
-    setShowResults(false);
-    if (searchInputRef.current) {
-      searchInputRef.current.focus();
+    setSearchTerm('');
+    setSearchResults([]);
+    setError('');
+  };
+
+  const getStockStatus = (product: Product) => {
+    if (product.stock_actual === undefined) return null;
+    
+    if (product.stock_actual === 0) {
+      return <Chip label="Sin Stock" color="error" size="small" />;
+    } else if (product.stock_actual <= product.stock_minimo) {
+      return <Chip label="Stock Bajo" color="warning" size="small" />;
+    } else {
+      return <Chip label={`Stock: ${product.stock_actual}`} color="success" size="small" />;
     }
   };
 
   return (
-    <div className="relative">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-        <input
-          ref={searchInputRef}
-          type="text"
-          value={query}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyPress}
-          className="w-full pl-10 pr-12 py-3 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-          placeholder="Buscar producto por nombre o código de barras..."
-          autoComplete="off"
-        />
-        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-          {isSearching ? (
-            <LoadingSpinner size="small" />
-          ) : (
-            <Scan className="text-gray-400 w-5 h-5" />
-          )}
-        </div>
-      </div>
+    <Box>
+      <TextField
+        fullWidth
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        placeholder={searchType === 'barcode' ? 'Escanea o escribe código de barras...' : 'Buscar por nombre, código...'}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              {searchType === 'barcode' ? <QrCodeScanner /> : <Search />}
+            </InputAdornment>
+          ),
+          endAdornment: loading && (
+            <InputAdornment position="end">
+              <LoadingSpinner size={20} />
+            </InputAdornment>
+          ),
+        }}
+        sx={{ mb: 2 }}
+      />
 
-      {/* Resultados de búsqueda */}
-      {showResults && (
-        <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-          {searchResults.length > 0 ? (
-            searchResults.map((product) => (
-              <button
-                key={product.id}
-                onClick={() => selectProduct(product)}
-                className="w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-b-0"
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="bg-gray-100 dark:bg-gray-700 p-2 rounded">
-                    <Package className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      {product.nombre}
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {product.codigo_barras} • ${product.precio_venta_usd}
-                      {product.stock_actual !== undefined && (
-                        <span className={`ml-2 ${product.stock_actual > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          Stock: {product.stock_actual}
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </button>
-            ))
-          ) : (
-            <div className="px-4 py-3 text-gray-500 dark:text-gray-400 text-center">
-              No se encontraron productos
-            </div>
-          )}
-        </div>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
+          {error}
+        </Alert>
       )}
-    </div>
+
+      {searchResults.length > 0 && (
+        <Box sx={{ maxHeight: 300, overflow: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
+          <List dense>
+            {searchResults.map((product) => (
+              <ListItem
+                key={product.id}
+                sx={{
+                  borderBottom: 1,
+                  borderColor: 'divider',
+                  '&:hover': { bgcolor: 'action.hover' },
+                }}
+              >
+                <ListItemText
+                  primary={
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Typography variant="subtitle2">
+                        {product.nombre}
+                      </Typography>
+                      {getStockStatus(product)}
+                    </Stack>
+                  }
+                  secondary={
+                    <Box>
+                      <Typography variant="body2" color="textSecondary">
+                        Código: {product.codigo_barras}
+                      </Typography>
+                      <Typography variant="body2" color="primary" fontWeight="bold">
+                        ${product.precio_venta_usd.toFixed(2)} USD
+                      </Typography>
+                      {product.categoria && (
+                        <Typography variant="caption" color="textSecondary">
+                          {product.categoria.nombre}
+                        </Typography>
+                      )}
+                    </Box>
+                  }
+                />
+                <ListItemSecondaryAction>
+                  <IconButton
+                    edge="end"
+                    onClick={() => handleProductSelect(product)}
+                    disabled={product.stock_actual === 0}
+                    color="primary"
+                  >
+                    <Add />
+                  </IconButton>
+                </ListItemSecondaryAction>
+              </ListItem>
+            ))}
+          </List>
+        </Box>
+      )}
+
+      {searchTerm && !loading && searchResults.length === 0 && !error && (
+        <Box sx={{ textAlign: 'center', py: 3 }}>
+          <Inventory sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+          <Typography color="textSecondary">
+            No se encontraron productos
+          </Typography>
+        </Box>
+      )}
+    </Box>
   );
 }

@@ -1,235 +1,333 @@
 import React, { useState, useEffect } from 'react';
-import { ProductSearch } from './ProductSearch';
-import { Cart } from './Cart';
-import { PaymentModal } from './PaymentModal';
-import { CashRegisterSetup } from './CashRegisterSetup';
+import {
+  Box,
+  Grid,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  Alert,
+  Stack,
+  Divider,
+} from '@mui/material';
+import {
+  ShoppingCart,
+  Payment,
+  Receipt,
+  Close,
+} from '@mui/icons-material';
 import { useCashRegister } from '../../contexts/CashRegisterContext';
-import { Product, SaleItem } from '../../types';
-import { saleService } from '../../services/saleService';
-import { AlertTriangle, CheckCircle } from 'lucide-react';
+import { Product, SaleItem, Sale } from '../../types';
+import { ProductSearch } from './ProductSearch';
+import { SaleCart } from './SaleCart';
+import { PaymentDialog } from './PaymentDialog';
+import { ReceiptDialog } from './ReceiptDialog';
+import { CloseCashRegisterDialog } from './CloseCashRegisterDialog';
 
 export function POSInterface() {
   const [cartItems, setCartItems] = useState<SaleItem[]>([]);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showCashSetup, setShowCashSetup] = useState(false);
-  const [notification, setNotification] = useState<{
-    type: 'success' | 'error';
-    message: string;
-  } | null>(null);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [showReceiptDialog, setShowReceiptDialog] = useState(false);
+  const [showCloseCashDialog, setShowCloseCashDialog] = useState(false);
+  const [completedSale, setCompletedSale] = useState<Sale | null>(null);
+  const [error, setError] = useState('');
 
-  const { isOpen, currentCashRegister, loading } = useCashRegister();
+  const { currentCashRegister, exchangeRate } = useCashRegister();
 
-  useEffect(() => {
-    if (!loading && !isOpen) {
-      setShowCashSetup(true);
+  // Calcular totales del carrito
+  const cartTotals = React.useMemo(() => {
+    const subtotalUSD = cartItems.reduce((total, item) => {
+      const price = item.producto?.precio_venta_usd || 0;
+      return total + (price * item.cantidad);
+    }, 0);
+
+    const rate = exchangeRate?.usd_ves || 1;
+    const subtotalVES = subtotalUSD * rate;
+
+    // IVA 16%
+    const taxRate = 0.16;
+    const impuestoUSD = subtotalUSD * taxRate;
+    const impuestoVES = subtotalVES * taxRate;
+
+    const totalUSD = subtotalUSD + impuestoUSD;
+    const totalVES = subtotalVES + impuestoVES;
+
+    return {
+      subtotalUSD,
+      subtotalVES,
+      impuestoUSD,
+      impuestoVES,
+      totalUSD,
+      totalVES,
+      itemCount: cartItems.reduce((total, item) => total + item.cantidad, 0)
+    };
+  }, [cartItems, exchangeRate]);
+
+  const handleAddProduct = (product: Product, quantity: number = 1) => {
+    setError('');
+    
+    // Verificar stock disponible
+    if (product.stock_actual !== undefined && product.stock_actual < quantity) {
+      setError(`Stock insuficiente. Disponible: ${product.stock_actual}`);
+      return;
     }
-  }, [loading, isOpen]);
 
-  const showNotification = (type: 'success' | 'error', message: string) => {
-    setNotification({ type, message });
-    setTimeout(() => setNotification(null), 5000);
-  };
-
-  const addProductToCart = (product: Product) => {
-    setCartItems(prev => {
-      const existingItem = prev.find(item => item.producto_id === product.id);
+    setCartItems(prevItems => {
+      const existingItemIndex = prevItems.findIndex(item => item.producto_id === product.id);
       
-      if (existingItem) {
-        return prev.map(item =>
-          item.producto_id === product.id
-            ? { ...item, cantidad: item.cantidad + 1 }
-            : item
-        );
+      if (existingItemIndex >= 0) {
+        // Actualizar cantidad del producto existente
+        const newItems = [...prevItems];
+        const newQuantity = newItems[existingItemIndex].cantidad + quantity;
+        
+        // Verificar stock al agregar más cantidad
+        if (product.stock_actual !== undefined && product.stock_actual < newQuantity) {
+          setError(`Stock insuficiente. Disponible: ${product.stock_actual}`);
+          return prevItems;
+        }
+        
+        newItems[existingItemIndex].cantidad = newQuantity;
+        return newItems;
       } else {
-        return [...prev, {
+        // Agregar nuevo producto
+        return [...prevItems, {
           producto_id: product.id,
-          cantidad: 1,
+          cantidad: quantity,
           producto: product
         }];
       }
     });
-
-    showNotification('success', `${product.nombre} agregado al carrito`);
   };
 
-  const updateQuantity = (productId: number, quantity: number) => {
-    if (quantity <= 0) {
-      removeItem(productId);
+  const handleUpdateQuantity = (productId: number, newQuantity: number) => {
+    if (newQuantity <= 0) {
+      handleRemoveItem(productId);
       return;
     }
 
-    setCartItems(prev =>
-      prev.map(item =>
-        item.producto_id === productId
-          ? { ...item, cantidad: quantity }
-          : item
-      )
+    setCartItems(prevItems =>
+      prevItems.map(item => {
+        if (item.producto_id === productId) {
+          // Verificar stock
+          if (item.producto?.stock_actual !== undefined && item.producto.stock_actual < newQuantity) {
+            setError(`Stock insuficiente. Disponible: ${item.producto.stock_actual}`);
+            return item;
+          }
+          return { ...item, cantidad: newQuantity };
+        }
+        return item;
+      })
     );
+    setError('');
   };
 
-  const removeItem = (productId: number) => {
-    setCartItems(prev => prev.filter(item => item.producto_id !== productId));
+  const handleRemoveItem = (productId: number) => {
+    setCartItems(prevItems => prevItems.filter(item => item.producto_id !== productId));
+    setError('');
   };
 
-  const clearCart = () => {
+  const handleClearCart = () => {
     setCartItems([]);
+    setError('');
   };
 
-  const handlePaymentComplete = async (paymentData: any) => {
-    try {
-      if (!currentCashRegister) {
-        throw new Error('No hay caja registradora abierta');
-      }
-
-      const saleData = {
-        caja_id: currentCashRegister.caja_id,
-        items: cartItems.map(item => ({
-          producto_id: item.producto_id,
-          cantidad: item.cantidad
-        })),
-        ...paymentData
-      };
-
-      const response = await saleService.createSale(saleData);
-
-      if (response.success) {
-        showNotification('success', 'Venta completada exitosamente');
-        setCartItems([]);
-        setShowPaymentModal(false);
-      } else {
-        throw new Error(response.message || 'Error procesando la venta');
-      }
-    } catch (error: any) {
-      showNotification('error', error.message || 'Error completando la venta');
-    }
+  const handlePaymentSuccess = (sale: Sale) => {
+    setCompletedSale(sale);
+    setCartItems([]);
+    setShowPaymentDialog(false);
+    setShowReceiptDialog(true);
+    setError('');
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Cargando sistema POS...</p>
-        </div>
-      </div>
-    );
-  }
+  const handlePrintReceipt = () => {
+    // Implementar impresión del recibo
+    window.print();
+  };
 
-  if (!isOpen) {
-    return (
-      <div className="text-center py-12">
-        <AlertTriangle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          Caja Registradora Cerrada
-        </h2>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">
-          Debes abrir una caja registradora para comenzar a vender
-        </p>
-        <button
-          onClick={() => setShowCashSetup(true)}
-          className="btn btn-primary"
-        >
-          Abrir Caja Registradora
-        </button>
-        
-        <CashRegisterSetup
-          isOpen={showCashSetup}
-          onClose={() => setShowCashSetup(false)}
-          onSuccess={() => {
-            setShowCashSetup(false);
-            showNotification('success', 'Caja abierta exitosamente');
-          }}
-        />
-      </div>
-    );
-  }
+  const canProcessSale = cartItems.length > 0 && currentCashRegister;
 
   return (
-    <div className="space-y-6">
-      {/* Notificaciones */}
-      {notification && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg flex items-center space-x-3 ${
-          notification.type === 'success' 
-            ? 'bg-green-50 border border-green-200 text-green-700' 
-            : 'bg-red-50 border border-red-200 text-red-700'
-        }`}>
-          {notification.type === 'success' ? (
-            <CheckCircle className="w-5 h-5" />
-          ) : (
-            <AlertTriangle className="w-5 h-5" />
-          )}
-          <span>{notification.message}</span>
-        </div>
-      )}
+    <Box>
+      <Grid container spacing={3}>
+        {/* Panel izquierdo - Búsqueda y productos */}
+        {/*<Grid xs={12} md={8}>*/}
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+          <Stack spacing={3}>
+            {/* Búsqueda de productos */}
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Buscar Productos
+                </Typography>
+                <ProductSearch onProductSelect={handleAddProduct} />
+              </CardContent>
+            </Card>
 
-      {/* Búsqueda de productos */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-6">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-          Agregar Productos
-        </h2>
-        <ProductSearch onProductSelect={addProductToCart} />
-      </div>
+            {/* Información de la caja */}
+            {currentCashRegister && (
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Información de Caja
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Stack spacing={3}>
+                      <Typography variant="body2" color="textSecondary">
+                        Caja Actual
+                      </Typography>
+                      <Typography variant="h6">
+                        {currentCashRegister.caja.nombre}
+                      </Typography>
+                    </Stack>
+                    <Stack spacing={3}>
+                      <Typography variant="body2" color="textSecondary">
+                        Hora de Apertura
+                      </Typography>
+                      <Typography variant="h6">
+                        {new Date(currentCashRegister.fecha_apertura).toLocaleTimeString()}
+                      </Typography>
+                    </Stack>
+                  </Grid>
+                </CardContent>
+              </Card>
+            )}
+          </Stack>
+        </Stack>  
+        {/*</Grid>*/}
 
-      {/* Carrito y controles */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <Cart
-            items={cartItems}
-            onUpdateQuantity={updateQuantity}
-            onRemoveItem={removeItem}
-            onClearCart={clearCart}
-          />
-        </div>
+        {/* Panel derecho - Carrito y acciones */}
+        <Grid container spacing={2}>
+          <Stack spacing={3}>
+            {/* Carrito de compras */}
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom display="flex" alignItems="center" gap={1}>
+                  <ShoppingCart />
+                  Carrito de Compras
+                  {cartTotals.itemCount > 0 && (
+                    <Typography variant="body2" color="primary">
+                      ({cartTotals.itemCount} items)
+                    </Typography>
+                  )}
+                </Typography>
+                
+                <SaleCart
+                  items={cartItems}
+                  onUpdateQuantity={handleUpdateQuantity}
+                  onRemoveItem={handleRemoveItem}
+                  onClearCart={handleClearCart}
+                  exchangeRate={exchangeRate?.usd_ves || 1}
+                />
+              </CardContent>
+            </Card>
 
-        <div className="space-y-4">
-          {/* Botones de acción */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Acciones
-            </h3>
-            <div className="space-y-3">
-              <button
-                onClick={() => setShowPaymentModal(true)}
-                disabled={cartItems.length === 0}
-                className="w-full btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            {/* Totales */}
+            {cartItems.length > 0 && (
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Resumen de Venta
+                  </Typography>
+                  
+                  <Stack spacing={1}>
+                    <Box display="flex" justifyContent="space-between">
+                      <Typography>Subtotal USD:</Typography>
+                      <Typography fontWeight="bold">
+                        ${cartTotals.subtotalUSD.toFixed(2)}
+                      </Typography>
+                    </Box>
+                    
+                    <Box display="flex" justifyContent="space-between">
+                      <Typography>Subtotal VES:</Typography>
+                      <Typography fontWeight="bold">
+                        Bs {cartTotals.subtotalVES.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                      </Typography>
+                    </Box>
+                    
+                    <Box display="flex" justifyContent="space-between">
+                      <Typography variant="body2" color="textSecondary">
+                        IVA (16%):
+                      </Typography>
+                      <Typography variant="body2">
+                        ${cartTotals.impuestoUSD.toFixed(2)}
+                      </Typography>
+                    </Box>
+                    
+                    <Divider />
+                    
+                    <Box display="flex" justifyContent="space-between">
+                      <Typography variant="h6">Total USD:</Typography>
+                      <Typography variant="h6" color="primary" className="pos-number">
+                        ${cartTotals.totalUSD.toFixed(2)}
+                      </Typography>
+                    </Box>
+                    
+                    <Box display="flex" justifyContent="space-between">
+                      <Typography variant="h6">Total VES:</Typography>
+                      <Typography variant="h6" color="primary" className="pos-number">
+                        Bs {cartTotals.totalVES.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Errores */}
+            {error && (
+              <Alert severity="error" onClose={() => setError('')}>
+                {error}
+              </Alert>
+            )}
+
+            {/* Acciones */}
+            <Stack spacing={2}>
+              <Button
+                variant="contained"
+                size="large"
+                disabled={!canProcessSale}
+                onClick={() => setShowPaymentDialog(true)}
+                startIcon={<Payment />}
+                fullWidth
               >
                 Procesar Pago
-              </button>
+              </Button>
               
-              <button
-                onClick={clearCart}
-                disabled={cartItems.length === 0}
-                className="w-full btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+              <Button
+                variant="outlined"
+                color="secondary"
+                onClick={() => setShowCloseCashDialog(true)}
+                startIcon={<Close />}
+                fullWidth
               >
-                Limpiar Carrito
-              </button>
-            </div>
-          </div>
+                Cerrar Caja
+              </Button>
+            </Stack>
+          </Stack>
+        </Grid>
+      </Grid>
 
-          {/* Información de la caja */}
-          {currentCashRegister && (
-            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-              <h4 className="font-medium text-blue-900 dark:text-blue-200 mb-2">
-                Caja Actual
-              </h4>
-              <p className="text-sm text-blue-700 dark:text-blue-300">
-                {currentCashRegister.caja.nombre}
-              </p>
-              <p className="text-xs text-blue-600 dark:text-blue-400">
-                Abierta desde: {new Date(currentCashRegister.fecha_apertura).toLocaleTimeString()}
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Modal de pago */}
-      <PaymentModal
-        isOpen={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        items={cartItems}
-        onPaymentComplete={handlePaymentComplete}
+      {/* Diálogos */}
+      <PaymentDialog
+        open={showPaymentDialog}
+        onClose={() => setShowPaymentDialog(false)}
+        cartItems={cartItems}
+        totals={cartTotals}
+        exchangeRate={exchangeRate?.usd_ves || 1}
+        onSuccess={handlePaymentSuccess}
       />
-    </div>
+
+      <ReceiptDialog
+        open={showReceiptDialog}
+        onClose={() => setShowReceiptDialog(false)}
+        sale={completedSale}
+        onPrint={handlePrintReceipt}
+      />
+
+      <CloseCashRegisterDialog
+        open={showCloseCashDialog}
+        onClose={() => setShowCloseCashDialog(false)}
+      />
+    </Box>
   );
 }

@@ -1,7 +1,24 @@
 import React, { useState } from 'react';
+import {
+  Box,
+  Card,
+  CardContent,
+  TextField,
+  Button,
+  Typography,
+  Alert,
+  IconButton,
+  InputAdornment,
+  Avatar,
+  Divider,
+} from '@mui/material';
+import {
+  Visibility,
+  VisibilityOff,
+  AttachMoney,
+} from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
-import { Eye, EyeOff, DollarSign } from 'lucide-react';
 
 export function LoginPage() {
   const [username, setUsername] = useState('');
@@ -25,96 +42,114 @@ export function LoginPage() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8 w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="bg-primary-500 text-white p-3 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-            <DollarSign className="w-8 h-8" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Sistema POS
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Ingresa tus credenciales para continuar
-          </p>
-        </div>
+  if (loading) {
+    return <LoadingSpinner fullScreen message="Iniciando sesión..." />;
+  }
 
-        {/* Formulario */}
-        <form onSubmit={handleSubmit} className="space-y-6">
+  return (
+    <Box
+      sx={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        p: 2,
+      }}
+    >
+      <Card sx={{ maxWidth: 400, width: '100%' }}>
+        <CardContent sx={{ p: 4 }}>
+          {/* Logo */}
+          <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
+            <Avatar
+              sx={{
+                bgcolor: 'primary.main',
+                width: 64,
+                height: 64,
+                mb: 2,
+              }}
+            >
+              <AttachMoney fontSize="large" />
+            </Avatar>
+            <Typography variant="h4" component="h1" gutterBottom>
+              Sistema POS
+            </Typography>
+            <Typography variant="body2" color="textSecondary" textAlign="center">
+              Ingresa tus credenciales para continuar
+            </Typography>
+          </Box>
+
+          {/* Error Alert */}
           {error && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg">
+            <Alert severity="error" sx={{ mb: 3 }}>
               {error}
-            </div>
+            </Alert>
           )}
 
-          <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Usuario
-            </label>
-            <input
-              id="username"
-              type="text"
+          {/* Form */}
+          <Box component="form" onSubmit={handleSubmit}>
+            <TextField
+              fullWidth
+              label="Usuario"
+              variant="outlined"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="input"
-              placeholder="Ingresa tu usuario"
+              margin="normal"
               disabled={loading}
+              autoFocus
             />
-          </div>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Contraseña
-            </label>
-            <div className="relative">
-              <input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input pr-10"
-                placeholder="Ingresa tu contraseña"
-                disabled={loading}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
-            </div>
-          </div>
+            <TextField
+              fullWidth
+              label="Contraseña"
+              type={showPassword ? 'text' : 'password'}
+              variant="outlined"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              margin="normal"
+              disabled={loading}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full btn btn-primary flex items-center justify-center space-x-2"
-          >
-            {loading ? (
-              <>
-                <LoadingSpinner size="small" />
-                <span>Iniciando sesión...</span>
-              </>
-            ) : (
-              <span>Iniciar Sesión</span>
-            )}
-          </button>
-        </form>
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              size="large"
+              disabled={loading}
+              sx={{ mt: 3, mb: 2, py: 1.5 }}
+            >
+              {loading ? <LoadingSpinner size={24} message="" /> : 'Iniciar Sesión'}
+            </Button>
+          </Box>
 
-        {/* Demo credentials */}
-        <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-            Credenciales de prueba:
-          </p>
-          <div className="text-xs space-y-1">
-            <p><strong>Admin:</strong> admin / admin123</p>
-            <p><strong>Cajero:</strong> cajero1 / cajero123</p>
-          </div>
-        </div>
-      </div>
-    </div>
+          <Divider sx={{ my: 3 }} />
+
+          {/* Demo Credentials */}
+          <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 1 }}>
+            <Typography variant="subtitle2" gutterBottom>
+              Credenciales de prueba:
+            </Typography>
+            <Typography variant="body2" color="textSecondary">
+              <strong>Admin:</strong> admin / admin123
+            </Typography>
+            <Typography variant="body2" color="textSecondary">
+              <strong>Cajero:</strong> cajero1 / cajero123
+            </Typography>
+          </Box>
+        </CardContent>
+      </Card>
+    </Box>
   );
 }

@@ -1,18 +1,47 @@
 import React from 'react';
+import { Box, CircularProgress, Typography } from '@mui/material';
 
 interface LoadingSpinnerProps {
-  size?: 'small' | 'medium' | 'large';
-  className?: string;
+  size?: number;
+  message?: string;
+  fullScreen?: boolean;
 }
 
-export function LoadingSpinner({ size = 'medium', className = '' }: LoadingSpinnerProps) {
-  const sizeClasses = {
-    small: 'w-4 h-4',
-    medium: 'w-8 h-8',
-    large: 'w-12 h-12'
-  };
-
-  return (
-    <div className={`animate-spin rounded-full border-2 border-gray-300 border-t-primary-500 ${sizeClasses[size]} ${className}`}></div>
+export function LoadingSpinner({ 
+  size = 40, 
+  message = 'Cargando...', 
+  fullScreen = false 
+}: LoadingSpinnerProps) {
+  const content = (
+    <Box
+      display="flex"
+      flexDirection="column"
+      alignItems="center"
+      justifyContent="center"
+      gap={2}
+    >
+      <CircularProgress size={size} />
+      {message && (
+        <Typography variant="body2" color="textSecondary">
+          {message}
+        </Typography>
+      )}
+    </Box>
   );
+
+  if (fullScreen) {
+    return (
+      <Box
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+        minHeight="100vh"
+        bgcolor="background.default"
+      >
+        {content}
+      </Box>
+    );
+  }
+
+  return content;
 }

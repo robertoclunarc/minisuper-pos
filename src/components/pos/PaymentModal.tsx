@@ -258,7 +258,7 @@ export function PaymentModal({ isOpen, onClose, items, onPaymentComplete }: Paym
           >
             {loading ? (
               <>
-                <LoadingSpinner size="small" />
+                <LoadingSpinner size={16} />
                 <span>Procesando...</span>
               </>
             ) : (

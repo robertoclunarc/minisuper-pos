@@ -8,7 +8,7 @@ import { es } from 'date-fns/locale';
 export function Header() {
   const { user, logout } = useAuth();
   const { currentCashRegister, exchangeRate } = useCashRegister();
-
+  
   return (
     <header className="bg-white dark:bg-gray-800 shadow-md border-b border-gray-200 dark:border-gray-700">
       <div className="px-6 py-4">
@@ -31,11 +31,11 @@ export function Header() {
           {/* Información central */}
           <div className="flex items-center space-x-6">
             {/* Tasa de cambio */}
-            {exchangeRate && (
+            {exchangeRate?.usd_ves != null && (
               <div className="text-center">
                 <p className="text-sm text-gray-500 dark:text-gray-400">Tasa USD/VES</p>
                 <p className="text-lg font-semibold text-green-600 dark:text-green-400">
-                  {exchangeRate.usd_ves.toLocaleString('es-VE', { 
+                  { exchangeRate.usd_ves.toLocaleString('es-VE', { 
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2 
                   })}
