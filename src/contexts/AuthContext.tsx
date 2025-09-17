@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, ReactNode, useCallback } from 'react';
 import { User, AuthState } from '../types';
 import { authService } from '../services/authService';
 
@@ -25,12 +25,15 @@ const initialState: AuthState = {
 
 function authReducer(state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
+    case 'LOGIN_START':
+      return { ...state };
     case 'LOGIN_SUCCESS':
       return {
         user: action.payload.user,
         token: action.payload.token,
         isAuthenticated: true,
       };
+    case 'LOGIN_FAILURE':
     case 'LOGOUT':
       return initialState;
     default:
@@ -46,23 +49,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [state, dispatch] = useReducer(authReducer, initialState);
   const [loading, setLoading] = React.useState(true);
 
-  useEffect(() => {
-    // Verificar si hay un token almacenado al cargar la app
-    const token = authService.getStoredToken();
-    const user = authService.getStoredUser();
-    
-    if (token && user) {
-      dispatch({
-        type: 'LOGIN_SUCCESS',
-        payload: { user, token }
-      });
-    }
-    setLoading(false);
-  }, []);
-
-  const login = async (username: string, password: string): Promise<boolean> => {
+  // ✅ useCallback para login
+  const login = useCallback(async (username: string, password: string): Promise<boolean> => {
     try {
       setLoading(true);
+      dispatch({ type: 'LOGIN_START' });
+      
       const response = await authService.login({ username, password });
       
       if (response.success && response.data) {
@@ -74,19 +66,47 @@ export function AuthProvider({ children }: AuthProviderProps) {
         });
         return true;
       }
+      
+      dispatch({ type: 'LOGIN_FAILURE' });
       return false;
     } catch (error) {
       console.error('Login error:', error);
+      dispatch({ type: 'LOGIN_FAILURE' });
       return false;
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const logout = () => {
+  // ✅ useCallback para logout
+  const logout = useCallback(() => {
     authService.logout();
     dispatch({ type: 'LOGOUT' });
-  };
+  }, []);
+
+  // ✅ Verificar token almacenado solo una vez al montar
+  useEffect(() => {
+    console.log('🚀 AuthProvider mounted, checking stored token...');
+    
+    const checkStoredAuth = () => {
+      const token = authService.getStoredToken();
+      const user = authService.getStoredUser();
+      
+      if (token && user) {
+        console.log('✅ Found stored auth data for user:', user.username);
+        dispatch({
+          type: 'LOGIN_SUCCESS',
+          payload: { user, token }
+        });
+      } else {
+        console.log('ℹ️ No stored auth data found');
+      }
+      
+      setLoading(false);
+    };
+
+    checkStoredAuth();
+  }, []); // ✅ Solo una vez al montar
 
   const value: AuthContextType = {
     ...state,

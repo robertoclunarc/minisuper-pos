@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, ReactNode, useCallback } from 'react';
 import { CashRegisterClose, ExchangeRate } from '../types';
 import { cashRegisterService } from '../services/cashRegisterService';
 import { currencyService } from '../services/currencyService';
@@ -69,7 +69,8 @@ interface CashRegisterProviderProps {
 export function CashRegisterProvider({ children }: CashRegisterProviderProps) {
   const [state, dispatch] = useReducer(cashRegisterReducer, initialState);
 
-  const refreshStatus = async () => {
+  // ✅ useCallback para evitar recrear funciones en cada render
+  const refreshStatus = useCallback(async () => {
     try {
       console.log('🔄 Refreshing cash register status...');
       dispatch({ type: 'SET_LOADING', payload: true });
@@ -87,7 +88,6 @@ export function CashRegisterProvider({ children }: CashRegisterProviderProps) {
         });
         console.log('✅ Cash register status updated:', response.data.is_open);
       } else {
-        // Si no hay error específico, asumir que no hay caja abierta
         dispatch({
           type: 'SET_CASH_REGISTER',
           payload: {
@@ -100,7 +100,6 @@ export function CashRegisterProvider({ children }: CashRegisterProviderProps) {
     } catch (error: any) {
       console.error('❌ Error getting cash register status:', error);
       
-      // Si es error 404 o similar, significa que no hay caja abierta
       if (error.response?.status === 404 || error.response?.status === 400) {
         dispatch({
           type: 'SET_CASH_REGISTER',
@@ -116,9 +115,9 @@ export function CashRegisterProvider({ children }: CashRegisterProviderProps) {
         });
       }
     }
-  };
+  }, []);
 
-  const refreshExchangeRate = async () => {
+  const refreshExchangeRate = useCallback(async () => {
     try {
       console.log('💱 Refreshing exchange rate...');
       const response = await currencyService.getCurrentRate();
@@ -133,11 +132,14 @@ export function CashRegisterProvider({ children }: CashRegisterProviderProps) {
       console.error('❌ Error getting exchange rate:', error);
       // No bloquear por error de tasa de cambio
     }
-  };
+  }, []);
 
-  const openCashRegister = async (data: any): Promise<boolean> => {
+  const openCashRegister = useCallback(async (data: any): Promise<boolean> => {
     try {
-      console.log('🔓 Opening cash register with data:', data);
+      console.log('🔓 Frontend: Opening cash register with data:', data);
+      console.log('🔑 Frontend: Current token:', localStorage.getItem('token'));
+      console.log('👤 Frontend: Current user:', JSON.parse(localStorage.getItem('user') || '{}'));
+      
       const response = await cashRegisterService.openCashRegister(data);
       if (response.success && response.data) {
         dispatch({
@@ -147,17 +149,18 @@ export function CashRegisterProvider({ children }: CashRegisterProviderProps) {
             cashRegister: response.data,
           }
         });
-        console.log('✅ Cash register opened successfully');
+        console.log('✅ Frontend: Cash register opened successfully');
         return true;
       }
       return false;
-    } catch (error) {
-      console.error('❌ Error opening cash register:', error);
+    } catch (error: any) {
+      console.error('❌ Frontend: Error opening cash register:', error);
+      console.error('❌ Frontend: Error response:', error.response?.data);
       return false;
     }
-  };
+  }, []);
 
-  const closeCashRegister = async (data: any): Promise<boolean> => {
+  const closeCashRegister = useCallback(async (data: any): Promise<boolean> => {
     try {
       const response = await cashRegisterService.closeCashRegister(data);
       if (response.success) {
@@ -169,13 +172,22 @@ export function CashRegisterProvider({ children }: CashRegisterProviderProps) {
       console.error('❌ Error closing cash register:', error);
       return false;
     }
-  };
+  }, []);
 
+  // ✅ useEffect que se ejecuta solo una vez al montar
   useEffect(() => {
     console.log('🚀 CashRegisterProvider mounted, initializing...');
-    refreshStatus();
-    refreshExchangeRate();
-  }, []);
+    
+    // ✅ Ejecutar ambas funciones en paralelo y solo una vez
+    const initialize = async () => {
+      await Promise.allSettled([
+        refreshStatus(),
+        refreshExchangeRate()
+      ]);
+    };
+
+    initialize();
+  }, []); // ✅ Array de dependencias vacío = solo una vez
 
   const value: CashRegisterContextType = {
     ...state,

@@ -13,7 +13,7 @@ function AppRoutes() {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner fullScreen message="Cargando aplicación..." />;
   }
 
   return (
@@ -24,7 +24,16 @@ function AppRoutes() {
       />
       <Route 
         path="/pos" 
-        element={isAuthenticated ? <POSPage /> : <Navigate to="/login" />} 
+        element={
+          isAuthenticated ? (
+            // ✅ SOLO cargar CashRegisterProvider cuando esté autenticado
+            <CashRegisterProvider>
+              <POSPage />
+            </CashRegisterProvider>
+          ) : (
+            <Navigate to="/login" />
+          )
+        } 
       />
       <Route 
         path="/" 
@@ -39,11 +48,9 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
-        <CashRegisterProvider>
-          <Router>
-            <AppRoutes />
-          </Router>
-        </CashRegisterProvider>
+        <Router>
+          <AppRoutes />
+        </Router>
       </AuthProvider>
     </ThemeProvider>
   );
