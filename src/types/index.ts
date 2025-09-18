@@ -104,6 +104,15 @@ export interface Sale {
   caja: CashRegister;
 }
 
+export interface NewSale {
+  venta?: Sale;
+  cambio?: {
+    usd?: number,
+    ves?: number
+  },
+  tasa_cambio?: ExchangeRate;
+}
+
 export interface SaleDetail {
   id: number;
   cantidad: number;

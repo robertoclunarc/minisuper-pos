@@ -1,5 +1,5 @@
 import { apiService } from './api';
-import { ApiResponse, Sale, SaleItem } from '../types';
+import { ApiResponse, Sale, SaleItem, NewSale } from '../types';
 
 export interface CreateSaleData {
   caja_id: number;
@@ -12,8 +12,8 @@ export interface CreateSaleData {
 }
 
 class SaleService {
-  async createSale(data: CreateSaleData): Promise<ApiResponse<Sale>> {
-    return apiService.post<ApiResponse<Sale>>('/sales', data);
+  async createSale(data: CreateSaleData): Promise<ApiResponse<NewSale>> {
+    return apiService.post<ApiResponse<NewSale>>('/sales', data);
   }
 
   async getSaleById(id: number): Promise<ApiResponse<Sale>> {

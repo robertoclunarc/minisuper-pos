@@ -139,7 +139,14 @@ export function PaymentDialog({
 
       if (response.success && response.data) {
         console.log('✅ Sale completed:', response.data);
-        onSuccess(response.data);
+        const saleData = response.data;
+        console.log('🧾 Sale data for receipt:', saleData);
+        if (!saleData?.venta?.id) {
+          console.error('❌ Sale ID is missing!', saleData);
+          setError('Error: ID de venta no encontrado');
+          return;
+        }
+        onSuccess(saleData.venta);
       } else {
         setError('Error procesando la venta');
       }

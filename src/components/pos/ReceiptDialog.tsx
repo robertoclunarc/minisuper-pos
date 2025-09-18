@@ -10,6 +10,7 @@ import {
   Stack,
   Divider,
   Paper,
+  Alert,
 } from '@mui/material';
 import {
   Receipt,
@@ -78,25 +79,45 @@ interface ReceiptData {
 export function ReceiptDialog({ open, onClose, sale, onPrint }: ReceiptDialogProps) {
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>('');
 
   useEffect(() => {
     if (open && sale) {
+      console.log('🧾 ReceiptDialog opened with sale:', sale);
       loadReceiptData();
     }
   }, [open, sale]);
 
   const loadReceiptData = async () => {
-    if (!sale) return;
+    if (!sale) {
+      console.error('❌ No sale provided to ReceiptDialog');
+      setError('No se proporcionó información de la venta');
+      return;
+    }
+
+    // ✅ VERIFICAR QUE EL ID EXISTE
+    if (!sale.id) {
+      console.error('❌ Sale ID is missing:', sale);
+      setError('ID de venta no encontrado');
+      return;
+    }
 
     try {
       setLoading(true);
+      setError('');
+      
+      console.log('📡 Loading receipt for sale ID:', sale.id);
       const response = await saleService.getSaleReceipt(sale.id);
       
       if (response.success && response.data) {
         setReceiptData(response.data);
+        console.log('✅ Receipt data loaded successfully');
+      } else {
+        setError('Error cargando datos del recibo');
       }
-    } catch (error) {
-      console.error('Error loading receipt data:', error);
+    } catch (error: any) {
+      console.error('❌ Error loading receipt data:', error);
+      setError('Error cargando el recibo: ' + (error.response?.data?.message || error.message));
     } finally {
       setLoading(false);
     }
@@ -116,7 +137,6 @@ export function ReceiptDialog({ open, onClose, sale, onPrint }: ReceiptDialogPro
 
   const handlePrint = () => {
     onPrint();
-    // Enfocar el recibo para imprimir
     const receiptElement = document.getElementById('receipt-content');
     if (receiptElement) {
       const printWindow = window.open('', '_blank');
@@ -144,7 +164,38 @@ export function ReceiptDialog({ open, onClose, sale, onPrint }: ReceiptDialogPro
     }
   };
 
-  if (!sale || !receiptData) {
+  // ✅ MOSTRAR ERROR SI NO HAY VENTA O ID
+  if (!sale) {
+    return (
+      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+        <DialogContent>
+          <Alert severity="error">
+            No se proporcionó información de la venta
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onClose}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
+    );
+  }
+
+  if (!sale.id) {
+    return (
+      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+        <DialogContent>
+          <Alert severity="error">
+            ID de venta no encontrado. Sale ID: {JSON.stringify(sale.id)}
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onClose}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
+    );
+  }
+
+  if (loading) {
     return (
       <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
         <DialogContent>
@@ -152,6 +203,51 @@ export function ReceiptDialog({ open, onClose, sale, onPrint }: ReceiptDialogPro
             <Typography>Cargando recibo...</Typography>
           </Box>
         </DialogContent>
+      </Dialog>
+    );
+  }
+
+  if (error) {
+    return (
+      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+        <DialogContent>
+          <Alert severity="error">
+            {error}
+          </Alert>
+          <Box mt={2}>
+            <Typography variant="body2">
+              Información de debug:
+            </Typography>
+            <Typography variant="caption" component="pre">
+              Sale ID: {sale.id}
+              {'\n'}Sale Object: {JSON.stringify(sale, null, 2)}
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onClose}>Cerrar</Button>
+          <Button onClick={loadReceiptData} variant="outlined">
+            Reintentar
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
+  }
+
+  if (!receiptData) {
+    return (
+      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+        <DialogContent>
+          <Box display="flex" justifyContent="center" py={4}>
+            <Typography>No se pudieron cargar los datos del recibo</Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onClose}>Cerrar</Button>
+          <Button onClick={loadReceiptData} variant="outlined">
+            Reintentar
+          </Button>
+        </DialogActions>
       </Dialog>
     );
   }
@@ -235,18 +331,18 @@ export function ReceiptDialog({ open, onClose, sale, onPrint }: ReceiptDialogPro
                   </Typography>
                   <Box display="flex" justifyContent="space-between">
                     <Typography variant="body2">
-                      {item.cantidad} x ${item.precio_unitario_usd.toFixed(2)}
+                      {item.cantidad} x ${Number(item.precio_unitario_usd || 0).toFixed(2)}
                     </Typography>
                     <Typography variant="body2" fontWeight="bold">
-                      ${item.subtotal_usd.toFixed(2)}
+                     ${Number(item.subtotal_usd || 0).toFixed(2)}
                     </Typography>
                   </Box>
                   <Box display="flex" justifyContent="space-between">
                     <Typography variant="caption" color="textSecondary">
-                      {item.cantidad} x Bs {item.precio_unitario_ves.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                      {item.cantidad} x Bs {Number(item.precio_unitario_ves || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
                     </Typography>
                     <Typography variant="caption" color="textSecondary">
-                      Bs {item.subtotal_ves.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                      Bs {Number(item.subtotal_ves || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
                     </Typography>
                   </Box>
                 </Box>
@@ -259,25 +355,25 @@ export function ReceiptDialog({ open, onClose, sale, onPrint }: ReceiptDialogPro
                 <Box display="flex" justifyContent="space-between">
                   <Typography variant="body2">Subtotal:</Typography>
                   <Typography variant="body2">
-                    ${receiptData.totales.subtotal_usd.toFixed(2)}
+                    ${Number(receiptData.totales.subtotal_usd || 0).toFixed(2)}
                   </Typography>
                 </Box>
                 <Box display="flex" justifyContent="space-between">
                   <Typography variant="body2">IVA (16%):</Typography>
                   <Typography variant="body2">
-                    ${receiptData.totales.impuesto_usd.toFixed(2)}
+                    ${Number(receiptData.totales.impuesto_usd || 0).toFixed(2)}
                   </Typography>
                 </Box>
                 <Box display="flex" justifyContent="space-between">
                   <Typography variant="body2" fontWeight="bold">TOTAL USD:</Typography>
                   <Typography variant="body2" fontWeight="bold">
-                    ${receiptData.totales.total_usd.toFixed(2)}
+                    ${Number(receiptData.totales.total_usd || 0).toFixed(2)}
                   </Typography>
                 </Box>
                 <Box display="flex" justifyContent="space-between">
                   <Typography variant="body2" fontWeight="bold">TOTAL VES:</Typography>
                   <Typography variant="body2" fontWeight="bold">
-                    Bs {receiptData.totales.total_ves.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                    Bs {Number(receiptData.totales.total_ves || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
                   </Typography>
                 </Box>
               </Stack>
@@ -296,7 +392,7 @@ export function ReceiptDialog({ open, onClose, sale, onPrint }: ReceiptDialogPro
                   <Box display="flex" justifyContent="space-between">
                     <Typography variant="body2">Recibido USD:</Typography>
                     <Typography variant="body2">
-                      ${receiptData.pago.recibido_usd.toFixed(2)}
+                      ${Number(receiptData.pago.recibido_usd || 0).toFixed(2)}
                     </Typography>
                   </Box>
                 )}
@@ -304,7 +400,7 @@ export function ReceiptDialog({ open, onClose, sale, onPrint }: ReceiptDialogPro
                   <Box display="flex" justifyContent="space-between">
                     <Typography variant="body2">Recibido VES:</Typography>
                     <Typography variant="body2">
-                      Bs {receiptData.pago.recibido_ves.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                      Bs {Number(receiptData.pago.recibido_ves || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
                     </Typography>
                   </Box>
                 )}
@@ -312,7 +408,7 @@ export function ReceiptDialog({ open, onClose, sale, onPrint }: ReceiptDialogPro
                   <Box display="flex" justifyContent="space-between">
                     <Typography variant="body2">Cambio USD:</Typography>
                     <Typography variant="body2">
-                      ${receiptData.pago.cambio_usd.toFixed(2)}
+                      ${Number(receiptData.pago.cambio_usd || 0).toFixed(2)}
                     </Typography>
                   </Box>
                 )}
@@ -320,14 +416,17 @@ export function ReceiptDialog({ open, onClose, sale, onPrint }: ReceiptDialogPro
                   <Box display="flex" justifyContent="space-between">
                     <Typography variant="body2">Cambio VES:</Typography>
                     <Typography variant="body2">
-                      Bs {receiptData.pago.cambio_ves.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                      Bs {Number(receiptData.pago.cambio_ves || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
                     </Typography>
                   </Box>
                 )}
                 <Box display="flex" justifyContent="space-between">
                   <Typography variant="body2">Tasa USD/VES:</Typography>
                   <Typography variant="body2">
-                    {receiptData.pago.tasa_cambio.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                    {Number(receiptData.pago.tasa_cambio || 1).toLocaleString('es-VE', { 
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2 
+                    })}
                   </Typography>
                 </Box>
               </Stack>
