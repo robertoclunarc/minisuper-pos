@@ -1,10 +1,10 @@
 import { apiService } from './api';
-import { ApiResponse, Sale, SaleItem, NewSale } from '../types';
+import { ApiResponse, Sale, SaleItem, NewSale, PaymentDetail } from '../types';
 
 export interface CreateSaleData {
   caja_id: number;
   items: SaleItem[];
-  metodo_pago: string;
+  pago: PaymentDetail[];
   monto_recibido_usd?: number;
   monto_recibido_ves?: number;
   descuento_usd?: number;
@@ -28,6 +28,7 @@ class SaleService {
     const params = fecha ? `?fecha=${fecha}` : '';
     return apiService.get<ApiResponse<{ ventas: Sale[]; estadisticas: any }>>(`/sales/daily${params}`);
   }
+  
 }
 
 export const saleService = new SaleService();

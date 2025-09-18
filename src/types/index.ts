@@ -7,6 +7,16 @@ export interface User {
   activo: boolean;
 }
 
+// Payment Types
+export interface PaymentDetail {
+  id?: number;
+  metodo_pago: string;
+  monto_usd: number;
+  monto_ves: number;
+  referencia?: string;
+  observaciones?: string;
+}
+
 export interface AuthState {
   user: User | null;
   token: string | null;
