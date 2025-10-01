@@ -4,9 +4,7 @@ import { ApiResponse, Sale, SaleItem, NewSale, PaymentDetail } from '../types';
 export interface CreateSaleData {
   caja_id: number;
   items: SaleItem[];
-  pago: PaymentDetail[];
-  monto_recibido_usd?: number;
-  monto_recibido_ves?: number;
+  pagos: PaymentDetail[]; // ✅ CAMBIAR A ARRAY DE PAGOS
   descuento_usd?: number;
   descuento_ves?: number;
 }

@@ -102,16 +102,21 @@ export interface Sale {
   impuesto_ves: number;
   total_usd: number;
   total_ves: number;
-  metodo_pago: string;
+  metodo_pago: string; // Resumen de métodos
   monto_recibido_usd: number;
   monto_recibido_ves: number;
   cambio_usd: number;
   cambio_ves: number;
-  tasa_cambio: number;
+  tasa_cambio_venta: number;
   estado: string;
   detalles: SaleDetail[];
+  detalles_pago?: PaymentDetail[]; // ✅ NUEVA PROPIEDAD
   usuario: User;
   caja: CashRegister;
+  
+  // Alias para compatibilidad
+  tasa_cambio?: number;
+  //numero_factura?: string;
 }
 
 export interface NewSale {

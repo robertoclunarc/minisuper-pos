@@ -135,6 +135,99 @@ export function ReceiptDialog({ open, onClose, sale, onPrint }: ReceiptDialogPro
     return methods[method] || method;
   };
 
+  const renderPaymentDetails = () => {
+    if (!sale?.detalles_pago || sale.detalles_pago.length <= 1) {
+      // Mostrar formato tradicional para un solo pago
+      return (
+        <Stack spacing={0.5}>
+          <Box display="flex" justifyContent="space-between">
+            <Typography variant="body2">Método:</Typography>
+            <Typography variant="body2">
+              {receiptData ? getPaymentMethodLabel(receiptData.pago.metodo) : ''}
+            </Typography>
+          </Box>
+          {receiptData && receiptData.pago.recibido_usd > 0 && (
+            <Box display="flex" justifyContent="space-between">
+              <Typography variant="body2">Recibido USD:</Typography>
+              <Typography variant="body2">
+                ${Number(receiptData.pago.recibido_usd || 0).toFixed(2)}
+              </Typography>
+            </Box>
+          )}
+          {receiptData && receiptData.pago.recibido_ves > 0 && (
+            <Box display="flex" justifyContent="space-between">
+              <Typography variant="body2">Recibido VES:</Typography>
+              <Typography variant="body2">
+                Bs {Number(receiptData.pago.recibido_ves || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+              </Typography>
+            </Box>
+          )}
+          {receiptData && Number(receiptData.pago.cambio_usd) > 0 && (
+            <Box display="flex" justifyContent="space-between">
+              <Typography variant="body2">Cambio USD:</Typography>
+              <Typography variant="body2">
+                ${Number(receiptData.pago.cambio_usd || 0).toFixed(2)}
+              </Typography>
+            </Box>
+          )}
+          {receiptData && Number(receiptData.pago.cambio_ves) > 0 && (
+            <Box display="flex" justifyContent="space-between">
+              <Typography variant="body2">Cambio VES:</Typography>
+              <Typography variant="body2">
+                Bs {Number(receiptData.pago.cambio_ves || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+              </Typography>
+            </Box>
+          )}
+        </Stack>
+      );
+    }
+
+    // Mostrar formato detallado para múltiples pagos
+    return (
+      <Stack spacing={1}>
+        <Typography variant="body2" fontWeight="bold">FORMAS DE PAGO:</Typography>
+        {sale.detalles_pago.map((pago, index) => (
+          <Box key={index} sx={{ pl: 1 }}>
+            <Box display="flex" justifyContent="space-between">
+              <Typography variant="body2">
+                {getPaymentMethodLabel(pago.metodo_pago)}:
+              </Typography>
+              <Typography variant="body2">
+                {pago.monto_usd > 0 && `$${Number(pago.monto_usd).toFixed(2)}`}
+                {pago.monto_usd > 0 && pago.monto_ves > 0 && ' + '}
+                {pago.monto_ves > 0 && `Bs ${Number(pago.monto_ves).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`}
+              </Typography>
+            </Box>
+            {pago.referencia && (
+              <Typography variant="caption" color="textSecondary" sx={{ pl: 1 }}>
+                Ref: {pago.referencia}
+              </Typography>
+            )}
+          </Box>
+        ))}
+        
+        <Divider sx={{ my: 0.5 }} />
+        
+        <Box display="flex" justifyContent="space-between">
+          <Typography variant="body2" fontWeight="bold">TOTAL RECIBIDO:</Typography>
+          <Typography variant="body2" fontWeight="bold">
+            {receiptData ? `$${Number(receiptData.pago.recibido_usd || 0).toFixed(2)} USD` : ''}
+          </Typography>
+        </Box>
+        
+        {Number(receiptData?.pago.cambio_usd) > 0 && (
+          <Box display="flex" justifyContent="space-between">
+            <Typography variant="body2">Cambio:</Typography>
+            <Typography variant="body2">
+              {receiptData ? `${Number(receiptData.pago.cambio_usd || 0).toFixed(2)} USD` : ''}
+            </Typography>
+          </Box>
+        )}
+      </Stack>
+    );
+  };
+
+
   const handlePrint = () => {
     onPrint();
     const receiptElement = document.getElementById('receipt-content');
@@ -385,7 +478,7 @@ export function ReceiptDialog({ open, onClose, sale, onPrint }: ReceiptDialogPro
                 <Box display="flex" justifyContent="space-between">
                   <Typography variant="body2">Método:</Typography>
                   <Typography variant="body2">
-                    {getPaymentMethodLabel(receiptData.pago.metodo)}
+                    {renderPaymentDetails()}
                   </Typography>
                 </Box>
                 {receiptData.pago.recibido_usd > 0 && (
