@@ -11,6 +11,7 @@ export interface CreateSaleData {
 
 class SaleService {
   async createSale(data: CreateSaleData): Promise<ApiResponse<NewSale>> {
+    console.log('Creating sale with data:', data);
     return apiService.post<ApiResponse<NewSale>>('/sales', data);
   }
 

@@ -68,8 +68,7 @@ interface CashRegisterProviderProps {
 
 export function CashRegisterProvider({ children }: CashRegisterProviderProps) {
   const [state, dispatch] = useReducer(cashRegisterReducer, initialState);
-
-  // ✅ useCallback para evitar recrear funciones en cada render
+  
   const refreshStatus = useCallback(async () => {
     try {
       console.log('🔄 Refreshing cash register status...');
@@ -117,20 +116,55 @@ export function CashRegisterProvider({ children }: CashRegisterProviderProps) {
     }
   }, []);
 
+  // ✅ MEJORAR refreshExchangeRate con validaciones
   const refreshExchangeRate = useCallback(async () => {
     try {
       console.log('💱 Refreshing exchange rate...');
       const response = await currencyService.getCurrentRate();
+      
       if (response.success && response.data) {
+        // ✅ VALIDAR QUE LOS DATOS SEAN CORRECTOS
+        const exchangeRateData = {
+          ...response.data,
+          usd_ves: Number(response.data.tasa_bcv) || 1 // Asegurar que sea un número válido
+        };
+        
         dispatch({
           type: 'SET_EXCHANGE_RATE',
-          payload: response.data
+          payload: exchangeRateData
         });
-        console.log('✅ Exchange rate updated:', response.data.usd_ves);
+        console.log('✅ Exchange rate updated:', exchangeRateData.tasa_bcv);
+      } else {
+        console.warn('⚠️ No exchange rate data received, using default rate');
+        // Usar tasa por defecto si no hay datos
+        dispatch({
+          type: 'SET_EXCHANGE_RATE',
+          payload: {
+            id: 0,
+            fecha: new Date().toISOString().split('T')[0],
+            tasa_bcv: 1,
+            tasa_paralelo: 1,
+            usd_ves: 1,
+            fuente: 'default',
+            created_at: new Date().toISOString()
+          }
+        });
       }
     } catch (error) {
       console.error('❌ Error getting exchange rate:', error);
-      // No bloquear por error de tasa de cambio
+      // ✅ En caso de error, usar tasa por defecto para evitar crashes
+      dispatch({
+        type: 'SET_EXCHANGE_RATE',
+        payload: {
+          id: 0,
+          fecha: new Date().toISOString().split('T')[0],
+          tasa_bcv: 1,
+          tasa_paralelo: 1,
+          usd_ves: 1,
+          fuente: 'error-fallback',
+          created_at: new Date().toISOString()
+        }
+      });
     }
   }, []);
 

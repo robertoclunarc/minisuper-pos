@@ -8,6 +8,12 @@ import { theme } from './theme/theme';
 import { LoginPage } from './pages/LoginPage';
 import { POSPage } from './pages/POSPage';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
+import { ReportsPage } from './pages/ReportsPage';
+import { ProductsPage } from './pages/ProductsPage';
+import { InventoryPage } from './pages/InventoryPage';
+import { CurrencyPage } from './pages/CurrencyPage';
+import { CategoriesPage } from './pages/CategoriesPage';
+import { ProvidersPage } from './pages/ProvidersPage';
 
 function AppRoutes() {
   const { isAuthenticated, loading } = useAuth();
@@ -25,10 +31,84 @@ function AppRoutes() {
       <Route 
         path="/pos" 
         element={
-          isAuthenticated ? (
-            // ✅ SOLO cargar CashRegisterProvider cuando esté autenticado
+          isAuthenticated ? (            
             <CashRegisterProvider>
               <POSPage />
+            </CashRegisterProvider>
+          ) : (
+            <Navigate to="/login" />
+          )
+        } 
+      />
+      <Route 
+        path="/currency" 
+        element={
+          isAuthenticated ? (
+            <CashRegisterProvider>
+              <CurrencyPage />
+            </CashRegisterProvider>
+          ) : (
+            <Navigate to="/login" />
+          )
+        } 
+      />
+      <Route 
+        path="/reports" 
+        element={
+          isAuthenticated ? (
+            <CashRegisterProvider>
+              <ReportsPage />
+            </CashRegisterProvider>
+          ) : (
+            <Navigate to="/login" />
+          )
+        } 
+      />
+      <Route 
+        path="/products" 
+        element={
+          isAuthenticated ? (
+            <CashRegisterProvider>
+              <ProductsPage />
+            </CashRegisterProvider>
+          ) : (
+            <Navigate to="/login" />
+          )
+        } 
+      />
+
+      <Route 
+        path="/categories" 
+        element={
+          isAuthenticated ? (
+            <CashRegisterProvider>
+              <CategoriesPage />
+            </CashRegisterProvider>
+          ) : (
+            <Navigate to="/login" />
+          )
+        } 
+      />
+      
+      <Route 
+        path="/providers" 
+        element={
+          isAuthenticated ? (
+            <CashRegisterProvider>
+              <ProvidersPage />
+            </CashRegisterProvider>
+          ) : (
+            <Navigate to="/login" />
+          )
+        } 
+      />
+
+      <Route 
+        path="/inventory" 
+        element={
+          isAuthenticated ? (
+            <CashRegisterProvider>
+              <InventoryPage />
             </CashRegisterProvider>
           ) : (
             <Navigate to="/login" />

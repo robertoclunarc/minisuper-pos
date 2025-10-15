@@ -23,6 +23,20 @@ export interface AuthState {
   isAuthenticated: boolean;
 }
 
+/*export interface InventoryBatch {
+  id?: number;
+  producto_id: number,
+  proveedor_id: number,
+  numero_lote?: string,
+  cantidad_inicial?: number,
+  cantidad_actual?: number,
+  precio_costo_usd?: number,
+  tasa_cambio_registro?: number,
+  usuario_id?: number,
+  fecha_ingreso?: string,
+  fecha_vencimiento?: string | null,
+};*/
+
 // Product Types
 export interface Product {
   id: number;
@@ -38,12 +52,68 @@ export interface Product {
   unidad_medida: string;
   activo: boolean;
   stock_actual?: number;
+
+  created_at: string;
+  updated_at?: string;  
+  
+  lotes?: InventoryBatch[];
+}
+
+export interface ProductFilters {
+  page?: number;
+  limit?: number;
+  search?: string;
+  categoria_id?: number;
+  proveedor_id?: number;
+  activo?: boolean;
+}
+
+export interface ProductFormData {
+  codigo_barras: string;
+  codigo_interno?: string;
+  nombre: string;
+  descripcion?: string;
+  categoria_id: number;
+  proveedor_id: number;
+  precio_venta_usd: number;
+  precio_costo_usd: number;
+  stock_minimo?: number;
+  unidad_medida?: string;
+  activo?: boolean;
+}
+
+export interface ProductSearchResult {
+  id: number;
+  codigo_barras: string;
+  nombre: string;
+}
+
+export interface ProductListResponse {
+  products: Product[];
+  pagination: {
+    current_page: number;
+    total_pages: number;
+    total_items: number;
+    items_per_page: number;
+  };
 }
 
 export interface Category {
   id: number;
   nombre: string;
   descripcion?: string;
+  activo?: boolean;
+  created_at?: string;
+}
+
+export interface Categories {
+  categories: Category[];
+  pagination: {
+    current_page: number;
+    total_pages: number;  
+    total_items: number; 
+    items_per_page: number;
+  };
 }
 
 export interface Provider {
@@ -52,6 +122,19 @@ export interface Provider {
   contacto?: string;
   telefono?: string;
   email?: string;
+  direccion?: string;
+  activo?: boolean;
+  created_at?: string;
+}
+
+export interface Providers {
+  providers: Provider[];
+  pagination: {
+    current_page: number;
+    total_pages: number;  
+    total_items: number; 
+    items_per_page: number;
+  };
 }
 
 // Cash Register Types
@@ -140,8 +223,14 @@ export interface SaleDetail {
 
 // Currency Types
 export interface ExchangeRate {
-  usd_ves: number;
-  last_update: string;
+  id?: number;
+  fecha?: string;
+  tasa_bcv?: number;
+  tasa_paralelo?: number;
+  usd_ves?: number;
+  last_update?: string;
+  fuente?: string;
+  created_at?: string;
 }
 
 // API Response Types
@@ -208,4 +297,72 @@ export interface ProvidersResponse {
       items_per_page: number;
     };
   };
+}
+
+export interface InventoryBatch {
+  id?: number;
+  producto_id: number;
+  proveedor_id: number;
+  numero_lote?: string;
+  cantidad_inicial?: number;
+  cantidad_actual?: number;
+  precio_costo_usd?: number;
+  tasa_cambio_registro?: number;
+  fecha_vencimiento?: string | null;
+  fecha_ingreso?: string;
+  usuario_id?: number;
+  created_at: string;
+  updated_at?: string;
+  
+  // Relaciones
+  producto?: Product;
+  proveedor?: Provider;
+  usuario?: User;
+  
+  // Campos calculados
+  valor_total_usd?: number;
+  dias_hasta_vencimiento?: number;
+  estado?: 'disponible' | 'por_vencer' | 'vencido' | 'agotado';
+}
+
+export interface InventoryBatchFormData {
+  product_id?: number,
+  lote_id?: number,
+  codigo_barras?: string,
+  codigo_interno?: string,
+  nombre?: string,
+  categoria?: string,
+  proveedor?: string,
+  proveedor_id?: number,
+  precio_venta_usd?: number,
+  stock_minimo?: number,
+  stock_total?: number,
+  total_lotes?: number,
+  lotes_disponibles?: number,
+  lotes_vencidos?: number,
+  valor_inventario_usd?: number,
+  estado_stock?: 'disponible' | 'por_vencer' | 'vencido' | 'agotado';
+  fecha_vencimiento?: string | null;
+  fecha_ingreso?: string;
+  unidad_medida?: string;
+  tasa_cambio_registro?: number;
+  usuario_id?: number;
+}
+
+export interface StockMovement {
+  id: number;
+  lote_id: number;
+  tipo_movimiento: 'ingreso' | 'salida' | 'ajuste' | 'venta' | 'devolucion';
+  cantidad_anterior: number;
+  cantidad_movimiento: number;
+  cantidad_nueva: number;
+  motivo: string;
+  referencia?: string; // Número de venta, ajuste, etc.
+  fecha_movimiento: string;
+  usuario_id: number;
+  created_at: string;
+  
+  // Relaciones
+  lote?: InventoryBatch;
+  usuario?: User;
 }

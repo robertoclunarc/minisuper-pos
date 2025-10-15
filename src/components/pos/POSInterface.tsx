@@ -45,7 +45,7 @@ export function POSInterface() {
     const subtotalVES = subtotalUSD * rate;
 
     // IVA 16%
-    const taxRate = 0.16;
+    const taxRate = 0.0;
     const impuestoUSD = subtotalUSD * taxRate;
     const impuestoVES = subtotalVES * taxRate;
 
@@ -246,7 +246,7 @@ export function POSInterface() {
                     
                     <Box display="flex" justifyContent="space-between">
                       <Typography variant="body2" color="textSecondary">
-                        IVA (16%):
+                        IVA (0%):
                       </Typography>
                       <Typography variant="body2">
                         ${cartTotals.impuestoUSD.toFixed(2)}

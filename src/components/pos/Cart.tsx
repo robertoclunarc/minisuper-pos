@@ -18,8 +18,8 @@ export function Cart({ items, onUpdateQuantity, onRemoveItem, onClearCart }: Car
       return total + (item.producto?.precio_venta_usd || 0) * item.cantidad;
     }, 0);
 
-    const subtotalVES = subtotalUSD * (exchangeRate?.usd_ves || 1);
-    const taxRate = 0.16; // 16% IVA
+    const subtotalVES = subtotalUSD * (exchangeRate?.tasa_bcv || 1);
+    const taxRate = 0.0; // 16% IVA
     const taxUSD = subtotalUSD * taxRate;
     const taxVES = subtotalVES * taxRate;
     const totalUSD = subtotalUSD + taxUSD;
